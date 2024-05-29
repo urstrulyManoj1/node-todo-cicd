@@ -25,30 +25,27 @@ stages{
                             echo "Deployment approved. Proceeding with deployment of image ${imageTag} to ECS..."
                             // Implement deployment to ECS here
                              def taskDefinitionJson = """
-                             {
-                             "family": "todo-task",
-                             "containerDefinitions": [{
-                             "name": "todo-container",
-                             "image": "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:"${imageTag}"",
-                             "cpu": 256,
-                             "memory": 512,
-                             "essential": true,
-                             "portMappings": [{
-                             "containerPort": 8000,
-                             "hostPort": 8000
-                                 
+                            {
+                                "family": "todo-task",
+                                "containerDefinitions": [{
+                                    "name": "todo-container",
+                                    "image": "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:${imageTag}",
+                                    "cpu": 256,
+                                    "memory": 512,
+                                    "essential": true,
+                                    "portMappings": [{
+                                        "containerPort": 8000,
+                                        "hostPort": 8000
+                                    }]
                                 }]
-                                 
-                              }]
-                                 
-                             }
-                             """
-            
-                           sh """
-                             aws ecs register-task-definition \
-                             --region us-west-1 \
-                             --cli-input-json '${taskDefinitionJson}''
-                             """
+                            }
+                            """
+                            
+                            sh """
+                            aws ecs register-task-definition \
+                                --region us-west-1 \
+                                --cli-input-json '${taskDefinitionJson}'
+                            """
                             
                             // run task
                            sh 'aws ecs run-task --cluster todo --task-definition todo-task --region us-west-1'
