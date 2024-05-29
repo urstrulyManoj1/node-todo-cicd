@@ -29,11 +29,11 @@ stages{
                                 "family": "todo-task",
                                 "networkMode": "awsvpc",
                                 "requiresCompatibilities": ["FARGATE"],
+                                "cpu": 256,
+                                "memory": 512,
                                 "containerDefinitions": [{
                                     "name": "todo-container",
                                     "image": "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:${imageTag}",
-                                    "cpu": 256,
-                                    "memory": 512,
                                     "essential": true,
                                     "portMappings": [{
                                         "containerPort": 8000,
