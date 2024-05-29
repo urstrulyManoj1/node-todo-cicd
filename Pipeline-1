@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('aws-cred')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-cred')
+    }
+    stages {
+        stage('Build and manual approvement') {
+            steps {
+             
+                echo 'Building the ToDo application on Docker'
+                
+                script {
+                  def latestCommitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                  // Build Docker image and tag with latest commit ID
+                  sh "docker build -t todo:${latestCommitId} ."
+                  echo "Latest commit ID: ${latestCommitId}"
+                
+                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',accessKeyVariable: 'AWS_ACCESS_KEY_ID',secretKeyVariable: 'AWS_SECRET_ACCESS_KEY',
+                    credentialsId: 'aws-cred']]) {
+                      sh 'aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 060570890627.dkr.ecr.us-west-1.amazonaws.com'
+                    }
+                  sh "docker tag todo:${latestCommitId} 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:${latestCommitId}"
+                  sh "docker push 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:${latestCommitId}"
+                }
+                // Manual approval
+                script {
+                    def userInput = input(
+                        id: 'userApproval',
+                        message: 'Proceed with deployment? (yes/no)',
+                        parameters: [choice(choices: ['yes', 'no'], description: 'Choose yes or no', name: 'Approval')]
+                    )
+
+                    if (userInput == 'yes') {
+                        echo 'Deployment approved. Proceeding with deployment...'
+                        build(job: 'pipeline-2-task-29-05', parameters: [])    
+                    } 
+                    else {
+                        error 'Deployment not approved. Stopping the pipeline.'
+                    }
+                }
+            }
+        }
+        
+       
+            
+        }
+      
+    }
