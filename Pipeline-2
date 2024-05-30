@@ -44,28 +44,30 @@ stages{
                             }
                             """
                             
-                          // Register the task definition
-                              def registerTaskOutput = sh(
-                              script: """
-                              aws ecs register-task-definition \
-                              --region us-west-1 \
-                              --cli-input-json '${taskDefinitionJson}'
-                              """, returnStdout: true).trim()
+                    // Register the task definition
+                    def registerTaskOutput = sh(
+                        script: """
+                        aws ecs register-task-definition --region us-west-1 --cli-input-json '${taskDefinitionJson}'
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "Task Definition registered: ${registerTaskOutput}"
 
-                          // Extract the revision number of the registered task definition
-                             def taskRevision = sh(
-                             script: """
-                             echo ${registerTaskOutput} | jq -r '.taskDefinition.taskDefinitionArn'
-                             """, returnStdout: true).trim()
+                    // Extract the revision number of the registered task definition
+                    def taskRevision = sh(
+                        script: """
+                        echo '${registerTaskOutput}' | jq -r '.taskDefinition.taskDefinitionArn'
+                        """,
+                        returnStdout: true
+                    ).trim()
 
-                          // Update ECS service with the new task definition revision
-                             sh """
-                             aws ecs update-service \
-                             --region us-west-1 \
-                             --cluster todo \
-                             --service todo-service \
-                             --task-definition ${taskRevision}
-                             """
+                    echo "Updating ECS service with task definition revision: ${taskRevision}"
+
+                    // Update ECS service with the new task definition revision
+                    sh """
+                    aws ecs update-service --region us-west-1 --cluster todo --service todo-service --task-definition ${taskRevision}
+                    """
 
                             
                         } else {
