@@ -59,11 +59,12 @@ stages{
                     def parsedOutput = jsonSlurper.parseText(registerTaskOutput)
                     def taskDefinitionArn = parsedOutput.taskDefinition.taskDefinitionArn
 
-                    echo "Updating ECS service with task definition revision: ${taskDefinitionArn}"
+                    def revisionNumber = taskDefinitionArn.tokenize(':')[-1]
+                    echo "Updating ECS service with task definition revision: ${revisionNumber}"
 
                     // Update ECS service with the new task definition revision
                     sh """
-                    aws ecs update-service --region us-west-1 --cluster todo --service todo-service --task-definition ${taskDefinitionArn}
+                    aws ecs update-service --region us-west-1 --cluster todo --service todo-service --task-definition ${revisionNumber}
                     """
 
                             
