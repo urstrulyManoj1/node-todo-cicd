@@ -54,19 +54,16 @@ stages{
                     
                     echo "Task Definition registered: ${registerTaskOutput}"
 
-                    // Extract the revision number of the registered task definition
-                    def taskRevision = sh(
-                        script: """
-                        echo '${registerTaskOutput}' | jq -r '.taskDefinition.taskDefinitionArn'
-                        """,
-                        returnStdout: true
-                    ).trim()
+                    // Extract the task definition ARN using Groovy's JsonSlurper
+                    def jsonSlurper = new groovy.json.JsonSlurper()
+                    def parsedOutput = jsonSlurper.parseText(registerTaskOutput)
+                    def taskDefinitionArn = parsedOutput.taskDefinition.taskDefinitionArn
 
-                    echo "Updating ECS service with task definition revision: ${taskRevision}"
+                    echo "Updating ECS service with task definition revision: ${taskDefinitionArn}"
 
                     // Update ECS service with the new task definition revision
                     sh """
-                    aws ecs update-service --region us-west-1 --cluster todo --service todo-service --task-definition ${taskRevision}
+                    aws ecs update-service --region us-west-1 --cluster todo --service todo-service --task-definition ${taskDefinitionArn}
                     """
 
                             
