@@ -63,9 +63,7 @@ stages{
                     echo "Updating ECS service with task definition revision: ${revisionNumber}"
 
                     // Update ECS service with the new task definition revision
-                    sh """
-                    aws ecs update-service --region us-west-1 --cluster todo --service todo-service --force-new-deployment
-                    """
+                    sh 'aws ecs update-service --region us-west-1 --cluster todo --service todo-service ${revisionNumber}'
 
                             
                         } else {
