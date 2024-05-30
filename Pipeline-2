@@ -44,23 +44,29 @@ stages{
                             }
                             """
                             
-                            sh """
-                            aws ecs register-task-definition \
-                                --region us-west-1 \
-                                --cli-input-json '${taskDefinitionJson}'
-                            """
-                            
-                            // create service 
-                           sh """
-                           aws ecs create-service \
-                           --region us-west-1 \
-                           --cluster todo \
-                           --service-name todo-service \
-                           --task-definition todo-task \
-                           --desired-count 1 \
-                           --launch-type FARGATE \
-                           --network-configuration 'awsvpcConfiguration={subnets=[subnet-0e3a470a8a2508d16,subnet-0db8bdb270e49e633],securityGroups=[sg-0f4569f5f026f3b17],assignPublicIp="ENABLED"}'
-                        """
+                          // Register the task definition
+                              def registerTaskOutput = sh(
+                              script: """
+                              aws ecs register-task-definition \
+                              --region us-west-1 \
+                              --cli-input-json '${taskDefinitionJson}'
+                              """, returnStdout: true).trim()
+
+                          // Extract the revision number of the registered task definition
+                             def taskRevision = sh(
+                             script: """
+                             echo ${registerTaskOutput} | jq -r '.taskDefinition.taskDefinitionArn'
+                             """, returnStdout: true).trim()
+
+                          // Update ECS service with the new task definition revision
+                             sh """
+                             aws ecs update-service \
+                             --region us-west-1 \
+                             --cluster todo \
+                             --service todo-service \
+                             --task-definition ${taskRevision}
+                             """
+
                             
                         } else {
                             error 'Deployment not approved. Stopping the pipeline.'
