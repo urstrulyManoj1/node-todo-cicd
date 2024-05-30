@@ -1,11 +1,7 @@
  pipeline {
     agent any
-
-    environment {
-        AWS_ACCESS_KEY_ID     = credentials('aws-cred')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-cred')
-    }
-stages{
+    
+    stages{
     stage('Deploy to ECS') {
             steps {
                 // Check the image tag (latest commit ID)
@@ -23,59 +19,39 @@ stages{
 
                         if (deploymentApproval == 'yes') {
                             echo "Deployment approved. Proceeding with deployment of image ${imageTag} to ECS..."
-                            // Implement deployment to ECS here
-                             def taskDefinitionJson = """
-                            {
-                                "family": "todo-task",
-                                "networkMode": "awsvpc",
-                                "requiresCompatibilities": ["FARGATE"],
-                                "cpu": "256",
-                                "memory": "512",
-                                "executionRoleArn": "arn:aws:iam::060570890627:role/ecsTaskExecutionRole",
-                                "containerDefinitions": [{
-                                    "name": "todo-container",
-                                    "image": "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:${imageTag}",
-                                    "essential": true,
-                                    "portMappings": [{
-                                        "containerPort": 8000,
-                                        "hostPort": 8000
-                                    }]
-                                }]
-                            }
-                            """
+                           
+                        // Implement deployment to ECS here
+                             def taskDefinitionJson = readFile('taskdefinition.json')
                             
-                    // Register the task definition
-                    def registerTaskOutput = sh(
-                        script: """
-                        aws ecs register-task-definition --region us-west-1 --cli-input-json '${taskDefinitionJson}'
-                        """,
-                        returnStdout: true
-                    ).trim()
-                    
-                    echo "Task Definition registered: ${registerTaskOutput}"
+                        // Register the task definition
+                             def registerTaskOutput = sh(
+                             script: """
+                             aws ecs register-task-definition --region us-west-1 --cli-input-json '${taskDefinitionJson}'
+                             """, returnStdout: true).trim()
+                             echo "Register Task Output: ${registerTaskOutput}"
 
-                    // Extract the task definition ARN using Groovy's JsonSlurper
-                    def jsonSlurper = new groovy.json.JsonSlurper()
-                    def parsedOutput = jsonSlurper.parseText(registerTaskOutput)
-                    def taskDefinitionArn = parsedOutput.taskDefinition.taskDefinitionArn
+                             def taskDefinitionArn = sh(
+                             script: """
+                             echo '${registerTaskOutput}' | grep -oP '(?<="taskDefinitionArn": ")[^"]+'
+                             """, returnStdout: true).trim()
 
-                    def revisionNumber = taskDefinitionArn.tokenize(':')[-1]
-                    echo "Updating ECS service with task definition revision: ${revisionNumber}"
+                             def revisionNumber = taskDefinitionArn.tokenize(':')[-1]
+                             echo "Task Definition Revision Number: ${revisionNumber}"
 
-                    // Update ECS service with the new task definition revision
-                    sh """
-                    aws ecs update-service --region us-west-1 --cluster todo --service todo-service --task-definition todo-task:${revisionNumber}
-                    """
+                             
+                        // Updating the service
+                             sh "aws ecs update-service --region us-west-1 --cluster todo --service todo-service --task-definition todo-task:${revisionNumber}"
 
-                            
-                        } else {
+                        } 
+                        else {
                             error 'Deployment not approved. Stopping the pipeline.'
                         }
-                    } else {
+                    } 
+                    else {
                         echo "Image tag (${imageTag}) does not match the latest commit ID (${latestCommitId}). Skipping deployment."
                     }
                 }
             }
      }   
-}
+  }
 }
