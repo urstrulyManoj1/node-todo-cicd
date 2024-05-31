@@ -1,0 +1,32 @@
+name: Deploy to Amazon ECS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-1
+
+    - name: Build Docker image
+      run: |
+        docker build -t todo .
+        docker tag todo:latest 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
+        $(aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 060570890627.dkr.ecr.us-west-1.amazonaws.com)
+        docker push 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
+
+    - name: Update ECS service
+      run: |
+        aws ecs update-service --cluster my-cluster --service my-service --desired-task 1 --task-definition todo:latest
