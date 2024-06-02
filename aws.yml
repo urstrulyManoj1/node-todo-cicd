@@ -31,9 +31,8 @@ phases:
       - echo $UPDATED_TASK_DEFINITION > updated-task-def.json
       - NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://updated-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
       - echo $NEW_TASK_DEF_ARN
-      - echo Updating the ECS service to use the new task definition...
-      - NEW_REVISION=$(echo $NEW_TASK_DEF_ARN | cut -d'/' -f2)
-      - aws ecs update-service --cluster todo --service todo-service --task-definition todo-task:$NEW_REVISION
+      - echo Updating the ECS service to use the latest task definition...
+      - aws ecs update-service --cluster todo --service todo-service --task-definition todo-task:latest
 
 artifacts:
   files:
