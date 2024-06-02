@@ -5,33 +5,38 @@ phases:
     commands:
       - echo Installing dependencies...
       - pip install --upgrade awscli jq
+
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 060570890627.dkr.ecr.us-west-1.amazonaws.com
+
   build:
     commands:
-      - echo Build started on `date`
+      - echo Build started on $(date)
       - echo Building the Docker image...
       - docker build -t todo:latest .
       - docker tag todo:latest 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
+
   post_build:
     commands:
-      - echo Build completed on `date`
+      - echo Build completed on $(date)
       - echo Pushing the Docker image...
       - docker push 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
       - echo Fetching the current task definition...
-      - >
-        CURRENT_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition todo-task --query 'taskDefinition' | jq '. | del(.status, .taskDefinitionArn, .revision, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+      - CURRENT_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition todo-task --query 'taskDefinition' | jq '. | del(.status, .taskDefinitionArn, .revision, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+      - echo "CURRENT_TASK_DEFINITION: $CURRENT_TASK_DEFINITION"
       - echo Updating the task definition with the new image URI...
-      - >
-        UPDATED_TASK_DEFINITION=$(echo $CURRENT_TASK_DEFINITION | jq --arg IMAGE "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest" '.containerDefinitions[0].image = $IMAGE')
+      - UPDATED_TASK_DEFINITION=$(echo $CURRENT_TASK_DEFINITION | jq --arg IMAGE "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest" '.containerDefinitions[0].image = $IMAGE')
+      - echo "UPDATED_TASK_DEFINITION: $UPDATED_TASK_DEFINITION"
       - echo Registering the new task definition with ECS...
       - echo $UPDATED_TASK_DEFINITION > updated-task-def.json
-      - >
-        NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://updated-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+      - cat updated-task-def.json  # Debug: Print the content of the file
+      - NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://updated-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+      - echo "NEW_TASK_DEF_ARN: $NEW_TASK_DEF_ARN"
       - echo Updating the ECS service to use the new task definition...
       - aws ecs update-service --cluster todo --service todo-service --task-definition $NEW_TASK_DEF_ARN --force-new-deployment
+
 artifacts:
   files:
     - updated-task-def.json
