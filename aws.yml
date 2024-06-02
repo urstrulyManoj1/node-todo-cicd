@@ -24,16 +24,16 @@ phases:
       - echo Pushing the Docker image...
       - docker push 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
       - echo Fetching the current task definition...
-      - CURRENT_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition todo-task --query 'taskDefinition' | jq '. | del(.status, .taskDefinitionArn, .revision, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' || exit 1)
+      - CURRENT_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition todo-task --query 'taskDefinition' | jq '. | del(.status, .taskDefinitionArn, .revision, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
       - echo Updating the task definition with the new image URI...
       - UPDATED_TASK_DEFINITION=$(echo $CURRENT_TASK_DEFINITION | jq --arg IMAGE "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest" '.containerDefinitions[0].image = $IMAGE')
       - echo Registering the new task definition with ECS...
       - echo $UPDATED_TASK_DEFINITION > updated-task-def.json
-      - NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://updated-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text || exit 1)
+      - NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://updated-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
       - echo $NEW_TASK_DEF_ARN
       - echo Updating the ECS service to use the new task definition...
-      - NEW_REVISION=$(echo $NEW_TASK_DEF_ARN | cut -d':' -f7)
-      - aws ecs update-service --cluster todo --service todo-service --task-definition todo-task:$NEW_REVISION || exit 1
+      - NEW_REVISION=$(echo $NEW_TASK_DEF_ARN | cut -d'/' -f2)
+      - aws ecs update-service --cluster todo --service todo-service --task-definition todo-task:$NEW_REVISION
 
 artifacts:
   files:
