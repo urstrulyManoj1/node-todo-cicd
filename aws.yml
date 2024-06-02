@@ -1,48 +1,35 @@
-name: Deploy to Amazon ECS
+version: 0.2
 
-on:
-  push:
-    branches: [ "master" ]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-west-1
-
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-
-    - name: Build, tag, and push image to Amazon ECR
-      run: |
-        docker build -t todo:latest .
-        docker tag todo:latest 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
-        docker push 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
-
-    - name: Get existing task definition
-      id: get-task-def
-      run: |
-        aws ecs describe-task-definition --task-definition todo-task > task-def.json
-
-    - name: Update task definition with new image
-      id: update-task-def
-      run: |
-        jq --arg IMAGE "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest" \
-           '.taskDefinition.containerDefinitions[0].image = $IMAGE' task-def.json > new-task-def.json
-        aws ecs register-task-definition --cli-input-json file://new-task-def.json
-
-    - name: Deploy updated task definition
-      run: |
-        NEW_TASK_DEF=$(jq -r '.taskDefinition.taskDefinitionArn' new-task-def.json)
-        aws ecs update-service --cluster todo --service todo-service --task-definition $NEW_TASK_DEF --force-new-deployment
-        aws ecs wait services-stable --cluster todo --services todo-service
+phases:
+  install:
+    runtime-versions:
+      docker: 18
+    commands:
+      - echo Installing dependencies...
+      - pip install --upgrade awscli
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - $(aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 060570890627.dkr.ecr.us-west-1.amazonaws.com)
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t todo:latest .
+      - docker tag todo:latest 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push 060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest
+      - echo Registering the task definition with ECS...
+      - |
+        TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition todo-task)
+        UPDATED_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "060570890627.dkr.ecr.us-west-1.amazonaws.com/todo:latest" '.taskDefinition | .containerDefinitions[0].image = $IMAGE')
+        echo $UPDATED_TASK_DEFINITION > updated-task-def.json
+        aws ecs register-task-definition --cli-input-json file://updated-task-def.json
+      - echo Updating the ECS service with the new task definition...
+      - NEW_TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition todo-task --query "taskDefinition.taskDefinitionArn" --output text)
+      - aws ecs update-service --cluster todo --service todo-service --task-definition $NEW_TASK_DEF_ARN --force-new-deployment
+artifacts:
+  files: updated-task-def.json
