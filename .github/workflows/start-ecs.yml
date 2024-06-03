@@ -1,0 +1,25 @@
+name: Start ECS Service todo-service-a
+
+on:
+  workflow_dispatch:
+
+jobs:
+  start-todo-service:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-west-1
+
+      - name: Start ECS service todo-service-a
+        run: |
+          echo "Starting ECS service todo-service-a..."
+          CLUSTER_NAME="todo-a"
+          SERVICE_NAME="todo-service-a"
+          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --desired-count 1
