@@ -25,6 +25,8 @@ jobs:
       - name: Log in to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          region: us-west-1 # Specify your AWS region here
 
       - name: Build, tag, and push Docker image
         env:
@@ -44,10 +46,10 @@ jobs:
 
       - name: Update ECS service
         env:
+          AWS_DEFAULT_REGION: us-west-1 # Specify your AWS region here
           ECR_REGISTRY: 060570890627.dkr.ecr.us-west-1.amazonaws.com
           ECR_REPOSITORY: todo-a
           IMAGE_TAG: latest
-          AWS_REGION: us-west-1
         run: |
           echo Fetching the current task definition...
           CURRENT_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition todo-task-a --query 'taskDefinition' | jq '. | del(.status, .taskDefinitionArn, .revision, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
